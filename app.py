@@ -6,8 +6,25 @@ app = Flask(__name__)
 
 
 def get_conn():
-    # Compose injects DATABASE_URL; service name "db" acts as hostname
-    return psycopg2.connect(os.environ["DATABASE_URL"])
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "db"),
+        database=os.getenv("DB_NAME", os.getenv("POSTGRES_DB", "appdb")),
+        user=os.getenv("DB_USER", os.getenv("POSTGRES_USER", "postgres")),
+        password=os.getenv("DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "postgres"))
+    )
+
+
+@app.route("/")
+def home():
+    return jsonify({
+        "message": "Hello from a containerized Flask app!",
+        "environment": os.getenv("APP_ENV", "development")
+    })
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "healthy"}), 200
 
 
 @app.route("/init")
@@ -16,9 +33,7 @@ def init_db():
     cur = conn.cursor()
     cur.execute(
         "CREATE TABLE IF NOT EXISTS visits ("
-        "id SERIAL PRIMARY KEY, "
-        "ts TIMESTAMP DEFAULT NOW()"
-        ")"
+        "id SERIAL PRIMARY KEY, ts TIMESTAMP NOT NULL);"
     )
     conn.commit()
     cur.close()
